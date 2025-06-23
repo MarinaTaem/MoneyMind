@@ -43,7 +43,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
-            label: 'Settings',
+            label: 'Limitation',
           ),
         ],
         currentIndex: _currentIndex,

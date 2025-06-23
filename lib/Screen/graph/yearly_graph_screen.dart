@@ -8,7 +8,8 @@ import 'package:money_mind/models/data_models.dart';
 import 'package:money_mind/utils/calculate.dart';
 import 'package:money_mind/utils/data_helper.dart';
 // import 'package:money_mind/utils/helper_date.dart';
-import 'package:money_mind/widgets/record_graph_widget.dart';
+// import 'package:money_mind/widgets/record_graph_widget.dart';
+import 'package:money_mind/widgets/summary_card.dart';
 
 class YearlyGraphScreen extends StatefulWidget {
   final int userId;
@@ -76,38 +77,57 @@ class _YearlyGraphScreenState extends State<YearlyGraphScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // final yealyTotal = calculateYearlyTotals(transactions);
-    // income = yealyTotal['income']!;
-    // expense = yealyTotal['expense']!;
+    // Grouping logic for transactions by category
+    final Map<int, List<Transaction>> groupedTransactions = {};
+    for (final transaction in transactions) {
+      final catId = transaction.category.id; // Use category.id as the key
+      if (!groupedTransactions.containsKey(catId)) {
+        groupedTransactions[catId] = [];
+      }
+      groupedTransactions[catId]!.add(transaction);
+    }
+    // If you need the Category object for the SummaryCard, store it separately:
+    final Map<int, Category> categoryMap = {
+      for (var t in transactions) t.category.id: t.category
+    };
+    // Then build your summary cards:
+    groupedTransactions.entries.map((entry) => SummaryCard(
+          category: categoryMap[entry.key]!,
+          transactions: entry.value,
+        ));
 
     return SizedBox(
-      width: 340,
+      width: double.infinity,
       child: Scaffold(
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.blue[50],
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // bar chart
-              AspectRatio(
-                aspectRatio: 1.5,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 14),
-                  child: BarChart(
-                    duration: const Duration(milliseconds: 300),
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      backgroundColor: const Color.fromARGB(255, 155, 181, 226),
-                      // barTouchData: barTouchData,
-                      barGroups: barGroups,
-                      // gridData: const FlGridData(show: false),
-                      titlesData: titlesData,
-                      borderData: borderData,
-                      maxY: getMaxY(),
-                      minY: 0,
-                      // barTouchData: BarTouchData(
-                      //     touchTooltipData:
-                      //         BarTouchTooltipData(fitInsideHorizontally: true)),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: AspectRatio(
+                  aspectRatio: 1.5,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 14),
+                    child: BarChart(
+                      duration: const Duration(milliseconds: 300),
+                      BarChartData(
+                        alignment: BarChartAlignment.spaceAround,
+                        backgroundColor:
+                            const Color.fromARGB(255, 155, 181, 226),
+                        // barTouchData: barTouchData,
+                        barGroups: barGroups,
+                        // gridData: const FlGridData(show: false),
+                        titlesData: titlesData,
+                        borderData: borderData,
+                        maxY: getMaxY(),
+                        minY: 0,
+                        // barTouchData: BarTouchData(
+                        //     touchTooltipData:
+                        //         BarTouchTooltipData(fitInsideHorizontally: true)),
+                      ),
                     ),
                   ),
                 ),
@@ -181,40 +201,34 @@ class _YearlyGraphScreenState extends State<YearlyGraphScreen> {
               const SizedBox(
                 height: 8,
               ),
-              // list of income and expense
-              const Row(children: [
-                Text(
-                  'Today',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+              // Budget summary cards section
+              Column(
+                children: [
+                  const Text(
+                    'Transaction Categories',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Spacer(),
-                Text(
-                  'Today',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ]),
-              const SizedBox(
-                height: 8,
-              ),
-              ListView.separated(
-                itemBuilder: (context, index) {
-                  return RecordGraphWidget(
-                    transaction: transactions[index],
-                  );
-                },
-                separatorBuilder: (BuildContext context, index) =>
-                    const Divider(),
-                itemCount: transactions.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
+
+                  // Sort categories by total amount (descending)
+                  ...(() {
+                    final sortedCategoryEntries =
+                        groupedTransactions.entries.toList()
+                          ..sort((a, b) {
+                            final totalA =
+                                a.value.fold(0.0, (sum, t) => sum + t.amount);
+                            final totalB =
+                                b.value.fold(0.0, (sum, t) => sum + t.amount);
+                            return totalB.compareTo(totalA);
+                          });
+                    return sortedCategoryEntries.map((entry) => SummaryCard(
+                          category: categoryMap[entry.key]!,
+                          transactions: entry.value,
+                        ));
+                  })(),
+                ],
               ),
             ],
           ),
@@ -243,30 +257,6 @@ class _YearlyGraphScreenState extends State<YearlyGraphScreen> {
     );
   }
 
-  Widget _leftTitles(double value, TitleMeta meta) {
-    const style = TextStyle(
-      color: Colors.grey,
-      fontWeight: FontWeight.bold,
-      fontSize: 14,
-    );
-    String text;
-    if (value == 0) {
-      text = '1ម៉ឺន';
-    } else if (value == 10) {
-      text = '1ម៉ឺន';
-    } else if (value == 19) {
-      text = '1ម៉ឺន';
-    } else {
-      return Container();
-    }
-
-    return SideTitleWidget(
-      meta: meta,
-      space: 4,
-      child: Text(text, style: style),
-    );
-  }
-
   FlTitlesData get titlesData => FlTitlesData(
         show: true,
         bottomTitles: AxisTitles(
@@ -278,7 +268,7 @@ class _YearlyGraphScreenState extends State<YearlyGraphScreen> {
         ),
         leftTitles: const AxisTitles(
           sideTitles: SideTitles(
-            showTitles: true,
+            showTitles: false,
           ),
         ),
         topTitles: const AxisTitles(

@@ -9,6 +9,7 @@ import 'package:money_mind/utils/calculate.dart';
 import 'package:money_mind/utils/data_helper.dart';
 // import 'package:money_mind/utils/helper_date.dart';
 import 'package:money_mind/widgets/record_graph_widget.dart';
+import 'package:money_mind/widgets/summary_card.dart';
 
 class DailyGraphScreen extends StatefulWidget {
   final int userId;
@@ -67,34 +68,71 @@ class _DailyGraphScreenState extends State<DailyGraphScreen> {
     income = dailyTotal['income']!;
     expense = dailyTotal['expense']!;
 
+    final now = DateTime.now();
+
+    // Calculate the start and end of the current week (Monday to Sunday)
+    final int currentWeekday = now.weekday; // 1 = Monday, 7 = Sunday
+    final DateTime weekStart = now.subtract(Duration(days: currentWeekday - 1));
+    final DateTime weekEnd = weekStart.add(const Duration(days: 6));
+
+    // Filter transactions for the current week
+    final currentWeekTransactions = transactions.where((t) {
+      final date = t.dateRecord;
+      return date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+          date.isBefore(weekEnd.add(const Duration(days: 1)));
+    }).toList();
+
+    // Grouping logic for transactions by category
+    final Map<int, List<Transaction>> groupedTransactions = {};
+    for (final transaction in currentWeekTransactions) {
+      final catId = transaction.category.id;
+      if (!groupedTransactions.containsKey(catId)) {
+        groupedTransactions[catId] = [];
+      }
+      groupedTransactions[catId]!.add(transaction);
+    }
+    // If you need the Category object for the SummaryCard, store it separately:
+    final Map<int, Category> categoryMap = {
+      for (var t in transactions) t.category.id: t.category
+    };
+    // Then build your summary cards:
+    groupedTransactions.entries.map((entry) => SummaryCard(
+          category: categoryMap[entry.key]!,
+          transactions: entry.value,
+        ));
+
     return SizedBox(
-      width: 340,
+      width: double.infinity,
       child: Scaffold(
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.blue[100],
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // bar chart
-              AspectRatio(
-                aspectRatio: 1.5,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 14),
-                  child: BarChart(
-                    duration: const Duration(milliseconds: 300),
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      backgroundColor: const Color.fromARGB(255, 155, 181, 226),
-                      // barTouchData: barTouchData,
-                      barGroups: barGroups,
-                      // gridData: const FlGridData(show: false),
-                      titlesData: titlesData,
-                      borderData: borderData,
-                      maxY: getMaxY(),
-                      minY: 0,
-                      // barTouchData: BarTouchData(
-                      //     touchTooltipData:
-                      //         BarTouchTooltipData(fitInsideHorizontally: true)),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: AspectRatio(
+                  aspectRatio: 1.5,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 14),
+                    child: BarChart(
+                      duration: const Duration(milliseconds: 300),
+                      BarChartData(
+                        alignment: BarChartAlignment.spaceAround,
+                        backgroundColor:
+                            const Color.fromARGB(255, 155, 181, 226),
+                        // barTouchData: barTouchData,
+                        barGroups: barGroups,
+                        // gridData: const FlGridData(show: false),
+                        titlesData: titlesData,
+                        borderData: borderData,
+                        maxY: getMaxY(),
+                        minY: 0,
+                        // barTouchData: BarTouchData(
+                        //     touchTooltipData:
+                        //         BarTouchTooltipData(fitInsideHorizontally: true)),
+                      ),
                     ),
                   ),
                 ),
@@ -168,40 +206,33 @@ class _DailyGraphScreenState extends State<DailyGraphScreen> {
               const SizedBox(
                 height: 8,
               ),
-              // list of income and expense
-              const Row(children: [
-                Text(
-                  'Today',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+              Column(
+                children: [
+                  const Text(
+                    'Transaction Categories',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Spacer(),
-                Text(
-                  'Today',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ]),
-              const SizedBox(
-                height: 8,
-              ),
-              ListView.separated(
-                itemBuilder: (context, index) {
-                  return RecordGraphWidget(
-                    transaction: transactions[index],
-                  );
-                },
-                separatorBuilder: (BuildContext context, index) =>
-                    const Divider(),
-                itemCount: transactions.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
+
+                  // Sort categories by total amount (descending)
+                  ...(() {
+                    final sortedCategoryEntries =
+                        groupedTransactions.entries.toList()
+                          ..sort((a, b) {
+                            final totalA =
+                                a.value.fold(0.0, (sum, t) => sum + t.amount);
+                            final totalB =
+                                b.value.fold(0.0, (sum, t) => sum + t.amount);
+                            return totalB.compareTo(totalA);
+                          });
+                    return sortedCategoryEntries.map((entry) => SummaryCard(
+                          category: categoryMap[entry.key]!,
+                          transactions: entry.value,
+                        ));
+                  })(),
+                ],
               ),
             ],
           ),
@@ -235,30 +266,6 @@ class _DailyGraphScreenState extends State<DailyGraphScreen> {
     );
   }
 
-  Widget _leftTitles(double value, TitleMeta meta) {
-    const style = TextStyle(
-      color: Colors.grey,
-      fontWeight: FontWeight.bold,
-      fontSize: 14,
-    );
-    String text;
-    if (value == 0) {
-      text = '1ម៉ឺន';
-    } else if (value == 10) {
-      text = '1ម៉ឺន';
-    } else if (value == 19) {
-      text = '1ម៉ឺន';
-    } else {
-      return Container();
-    }
-
-    return SideTitleWidget(
-      meta: meta,
-      space: 4,
-      child: Text(text, style: style),
-    );
-  }
-
   FlTitlesData get titlesData => FlTitlesData(
         show: true,
         bottomTitles: AxisTitles(
@@ -270,7 +277,7 @@ class _DailyGraphScreenState extends State<DailyGraphScreen> {
         ),
         leftTitles: const AxisTitles(
           sideTitles: SideTitles(
-            showTitles: true,
+            showTitles: false,
           ),
         ),
         topTitles: const AxisTitles(

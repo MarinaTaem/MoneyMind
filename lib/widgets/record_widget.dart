@@ -21,25 +21,30 @@ class RecordWidget extends StatelessWidget {
         padding: EdgeInsets.all(10),
         child: Row(
           children: [
-            Container(
+            SizedBox(
               height: 50,
               width: 50,
               child: Image.asset(transaction.category.icon),
             ),
-            SizedBox(width: 5),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextContent(content: transaction.category.name).build(),
-                Text(
-                  transaction.note,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
-                )
-              ],
+            const SizedBox(width: 5),
+            SizedBox(
+              width: MediaQuery.of(context).size.width - 150,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextContent(content: transaction.category.name).build(),
+                  Text(
+                    transaction.note,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                    overflow: TextOverflow.ellipsis, // Hide overflow with ...
+                    maxLines: 1,
+                  )
+                ],
+              ),
             ),
             Spacer(),
             Text(

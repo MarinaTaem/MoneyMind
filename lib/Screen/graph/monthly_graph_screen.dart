@@ -8,7 +8,8 @@ import 'package:money_mind/models/data_models.dart';
 import 'package:money_mind/utils/calculate.dart';
 import 'package:money_mind/utils/data_helper.dart';
 // import 'package:money_mind/utils/helper_date.dart';
-import 'package:money_mind/widgets/record_graph_widget.dart';
+// import 'package:money_mind/widgets/record_graph_widget.dart';
+import 'package:money_mind/widgets/summary_card.dart';
 
 class MonthlyGraphScreen extends StatefulWidget {
   final int userId;
@@ -63,38 +64,63 @@ class _MonthlyGraphScreenState extends State<MonthlyGraphScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final currentYearTransactions =
+        transactions.where((t) => t.dateRecord.year == now.year).toList();
     final monthlyTotal = calculateMonthlyTotals(transactions);
     income = monthlyTotal['income']!;
     expense = monthlyTotal['expense']!;
 
+    // Grouping logic for transactions by category
+    final Map<int, List<Transaction>> groupedTransactions = {};
+    for (final transaction in currentYearTransactions) {
+      final catId = transaction.category.id;
+      if (!groupedTransactions.containsKey(catId)) {
+        groupedTransactions[catId] = [];
+      }
+      groupedTransactions[catId]!.add(transaction);
+    }
+    // If you need the Category object for the SummaryCard, store it separately:
+    final Map<int, Category> categoryMap = {
+      for (var t in transactions) t.category.id: t.category
+    };
+    // Then build your summary cards:
+    groupedTransactions.entries.map((entry) => SummaryCard(
+          category: categoryMap[entry.key]!,
+          transactions: entry.value,
+        ));
+
     return SizedBox(
-      width: 340,
+      width: double.infinity,
       child: Scaffold(
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.blue[50],
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // bar chart
-              AspectRatio(
-                aspectRatio: 1.5,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Container(
-                    // Set a minimum width or calculate based on bar count for more space
-                    width: 60.0 * 12, // 60 pixels per bar, adjust as needed
-                    margin: const EdgeInsets.symmetric(vertical: 14),
-                    child: BarChart(
-                      duration: const Duration(milliseconds: 300),
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        backgroundColor:
-                            const Color.fromARGB(255, 155, 181, 226),
-                        barGroups: barGroups,
-                        titlesData: titlesData,
-                        borderData: borderData,
-                        maxY: getMaxY(),
-                        minY: 0,
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: AspectRatio(
+                  aspectRatio: 1.5,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Container(
+                      // Set a minimum width or calculate based on bar count for more space
+                      width: 60.0 * 12, // 60 pixels per bar, adjust as needed
+                      margin: const EdgeInsets.symmetric(vertical: 14),
+                      child: BarChart(
+                        duration: const Duration(milliseconds: 300),
+                        BarChartData(
+                          alignment: BarChartAlignment.spaceAround,
+                          backgroundColor:
+                              const Color.fromARGB(255, 155, 181, 226),
+                          barGroups: barGroups,
+                          titlesData: titlesData,
+                          borderData: borderData,
+                          maxY: getMaxY(),
+                          minY: 0,
+                        ),
                       ),
                     ),
                   ),
@@ -170,40 +196,34 @@ class _MonthlyGraphScreenState extends State<MonthlyGraphScreen> {
               const SizedBox(
                 height: 8,
               ),
-              // list of income and expense
-              const Row(children: [
-                Text(
-                  'Today',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+              // Budget summary cards section
+              Column(
+                children: [
+                  const Text(
+                    'Transaction Categories',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Spacer(),
-                Text(
-                  'Today',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ]),
-              const SizedBox(
-                height: 8,
-              ),
-              ListView.separated(
-                itemBuilder: (context, index) {
-                  return RecordGraphWidget(
-                    transaction: transactions[index],
-                  );
-                },
-                separatorBuilder: (BuildContext context, index) =>
-                    const Divider(),
-                itemCount: transactions.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
+
+                  // Sort categories by total amount (descending)
+                  ...(() {
+                    final sortedCategoryEntries =
+                        groupedTransactions.entries.toList()
+                          ..sort((a, b) {
+                            final totalA =
+                                a.value.fold(0.0, (sum, t) => sum + t.amount);
+                            final totalB =
+                                b.value.fold(0.0, (sum, t) => sum + t.amount);
+                            return totalB.compareTo(totalA);
+                          });
+                    return sortedCategoryEntries.map((entry) => SummaryCard(
+                          category: categoryMap[entry.key]!,
+                          transactions: entry.value,
+                        ));
+                  })(),
+                ],
               ),
             ],
           ),

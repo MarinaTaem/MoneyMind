@@ -17,7 +17,7 @@ class MyTabScreen extends StatelessWidget {
           height: double.infinity,
           width: double.infinity,
           child: TabContainer(
-            color: Colors.blue,
+            color: Colors.blue[100],
             tabs: [
               Text('Daily'),
               Text('Weekly'),

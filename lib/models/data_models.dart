@@ -1,5 +1,3 @@
-// import 'package:money_mind/data/categories.dart';
-
 class Transaction {
   late int? id; // Added optional id for database record
   late double amount;
@@ -30,7 +28,7 @@ class Transaction {
 
   static Transaction fromMap(Map<String, dynamic> map, Category category) {
     return Transaction(
-      id: map['record_id'], // Added record_id
+      id: map['record_id'],
       amount: map['amount'],
       note: map['note'] ?? '',
       dateRecord: DateTime.parse(map['date']),
